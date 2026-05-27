@@ -4,7 +4,7 @@ class LLMProvider:
     def __init__(self):
         self.openai_api_key = os.environ.get("OPENAI_API_KEY")
         self.google_api_key = os.environ.get("GOOGLE_API_KEY")
-        
+
         if self.google_api_key:
             self.provider_type = "google"
             from google import genai
@@ -22,14 +22,14 @@ class LLMProvider:
             system_instruction = "Eres un asistente experto en seguros y antifraude."
             full_prompt = f"{system_instruction}\n\n{prompt}"
             response = self.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3-flash-preview",
                 contents=full_prompt,
             )
             return response.text.strip()
-            
+
         elif self.provider_type == "openai":
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5-nano-2025-08-07",
                 messages=[
                     {"role": "system", "content": "Eres un asistente experto en seguros y antifraude."},
                     {"role": "user", "content": prompt}
@@ -47,7 +47,7 @@ class LLMProvider:
                 contents=text,
             )
             return response.embeddings[0].values
-            
+
         elif self.provider_type == "openai":
             response = self.client.embeddings.create(
                 input=text,
