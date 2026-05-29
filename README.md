@@ -200,6 +200,104 @@ data/
 
 ---
 
+## 🗄️ Modelado de Datos
+
+El esquema de la base de datos (PostgreSQL / Supabase) se compone de las siguientes tablas principales:
+
+```sql
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.asegurados_sinteticos (
+  id_asegurado text NOT NULL,
+  nombre_completo text,
+  segmento text,
+  ciudad text,
+  antiguedad_anios numeric,
+  polizas_activas integer,
+  reclamos_12_meses integer,
+  reclamos_historico integer,
+  reclamos_rc_sin_tercero integer,
+  perfil_riesgo text,
+  CONSTRAINT asegurados_sinteticos_pkey PRIMARY KEY (id_asegurado)
+);
+CREATE TABLE public.documentos (
+  id_documento text NOT NULL,
+  id_siniestro text,
+  tipo_documento text,
+  nombre_archivo text,
+  CONSTRAINT documentos_pkey PRIMARY KEY (id_documento),
+  CONSTRAINT documentos_id_siniestro_fkey FOREIGN KEY (id_siniestro) REFERENCES public.siniestros(id_siniestro),
+  CONSTRAINT fk_documentos_siniestro FOREIGN KEY (id_siniestro) REFERENCES public.siniestros(id_siniestro)
+);
+CREATE TABLE public.polizas (
+  id_poliza text NOT NULL,
+  id_asegurado text,
+  ramo text,
+  fecha_inicio date,
+  fecha_fin date,
+  suma_asegurada numeric,
+  prima_anual numeric,
+  canal_venta text,
+  estado_poliza text,
+  CONSTRAINT polizas_pkey PRIMARY KEY (id_poliza),
+  CONSTRAINT polizas_id_asegurado_fkey FOREIGN KEY (id_asegurado) REFERENCES public.asegurados_sinteticos(id_asegurado)
+);
+CREATE TABLE public.proveedores (
+  id_proveedor text NOT NULL,
+  nombre_proveedor text,
+  tipo text,
+  ciudad text,
+  n_siniestros_asociados integer,
+  en_lista_restrictiva text,
+  motivo_restriccion text,
+  promedio_monto numeric,
+  CONSTRAINT proveedores_pkey PRIMARY KEY (id_proveedor)
+);
+CREATE TABLE public.siniestros (
+  id_siniestro text NOT NULL,
+  id_poliza text,
+  id_asegurado text,
+  ramo text,
+  placa_vehiculo text,
+  cobertura text,
+  fecha_ocurrencia date,
+  fecha_reporte date,
+  dias_entre_ocurrencia_reporte numeric,
+  monto_reclamado numeric,
+  monto_estimado numeric,
+  monto_pagado numeric,
+  estado text,
+  sucursal text,
+  id_proveedor text,
+  descripcion_hechos text,
+  documentos_completos text,
+  prov_lista_restrictiva text,
+  dias_desde_inicio_poliza numeric,
+  dias_hasta_fin_poliza numeric,
+  reclamos_previos_asegurado numeric,
+  suma_asegurada numeric,
+  similitud_narrativa_max numeric,
+  numero_parte_policial text,
+  score_reglas integer,
+  nivel_riesgo text,
+  alertas jsonb,
+  score_anomalia integer,
+  embedding_descripcion USER-DEFINED,
+  explicacion_agente text,
+  pdf_analysis jsonb,
+  CONSTRAINT siniestros_pkey PRIMARY KEY (id_siniestro),
+  CONSTRAINT siniestros_id_poliza_fkey FOREIGN KEY (id_poliza) REFERENCES public.polizas(id_poliza),
+  CONSTRAINT siniestros_id_asegurado_fkey FOREIGN KEY (id_asegurado) REFERENCES public.asegurados_sinteticos(id_asegurado),
+  CONSTRAINT siniestros_id_proveedor_fkey FOREIGN KEY (id_proveedor) REFERENCES public.proveedores(id_proveedor),
+  CONSTRAINT fk_siniestros_asegurado FOREIGN KEY (id_asegurado) REFERENCES public.asegurados_sinteticos(id_asegurado),
+  CONSTRAINT fk_siniestros_poliza FOREIGN KEY (id_poliza) REFERENCES public.polizas(id_poliza),
+  CONSTRAINT fk_siniestros_proveedor FOREIGN KEY (id_proveedor) REFERENCES public.proveedores(id_proveedor)
+);
+```
+
+---
+
 ## 📂 Estructura del Proyecto
 
 ```text
@@ -247,83 +345,127 @@ fraudy-claims/
 
 ---
 
-## 🚀 Empezando
+## 🚀 Empezando (Guía de Instalación Local)
+
+Para ejecutar este proyecto en tu máquina local y asegurar que todo funcione correctamente (especialmente útil para validar antes de ir a producción), sigue estos pasos detallados:
 
 ### Prerrequisitos
-- Node.js v18+
-- Python 3.11+
-- Cuenta Supabase (con extensión `pgvector` habilitada)
-- API Key de Google Gemini
+- **Node.js** v18+
+- **Python** 3.11+
+- **Cuenta en Supabase** (con un proyecto nuevo creado)
+- **Google Gemini API Key**
 
 ### 1. Clonar e Instalar Dependencias
+
+Abre tu terminal y clona el repositorio:
 
 ```bash
 git clone https://github.com/drahcirok/fraudy-claims.git
 cd fraudy-claims
+```
 
-# Frontend
+#### Configurar Frontend (Next.js)
+```bash
 npm install
+```
 
-# Backend
+#### Configurar Backend (Python FastAPI)
+```bash
+# Crear entorno virtual
 python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+
+# Activar entorno (Mac/Linux)
+source venv/bin/activate
+# Activar entorno (Windows - PowerShell)
+.\venv\Scripts\Activate
+
+# Instalar dependencias backend
 pip install -r requirements.txt
 ```
 
-### 2. Configurar Variables de Entorno
+### 2. Configurar Base de Datos en Supabase
 
-```bash
-cp .env.example .env
-# Editar .env con tus credenciales (ver sección Configuración)
-```
+1. Crea un proyecto en [Supabase](https://supabase.com).
+2. Ve al **SQL Editor** en tu proyecto de Supabase.
+3. Asegúrate de habilitar la extensión `pgvector` ejecutando:
+   ```sql
+   CREATE EXTENSION IF NOT EXISTS vector;
+   ```
+4. Ejecuta el esquema SQL documentado en la sección [🗄️ Modelado de Datos](#️-modelado-de-datos) para crear todas las tablas necesarias.
 
-### 3. Inicializar Base de Datos
+### 3. Configurar Variables de Entorno
 
-```bash
-# Seed inicial de Supabase con datos sintéticos
-python -m src.ingestion.load_data
-
-# Entrenar modelo Isolation Forest y aplicar scores
-python -m src.models.fraud_model
-
-# Backfill de scores para todos los siniestros
-python -m src.ingestion.backfill_scores
-```
-
-### 4. Ejecutar
-
-```bash
-# Opción A — Desarrollo (frontend + backend separados)
-npm run dev          # Frontend en http://localhost:3000
-uvicorn src.app.main:app --reload --port 8000   # Backend en http://localhost:8000
-
-# Opción B — Docker (solo backend)
-docker-compose up --build   # Levanta FastAPI en :8000
-npm run dev                 # Frontend en :3000 (separado)
-```
-
----
-
-## ⚙️ Configuración
-
-Crea `.env` basado en `.env.example`:
+Crea el archivo `.env` en la raíz del proyecto. **Ojo:** Si estás desplegando en Vercel u otra plataforma, asegúrate de configurar estas mismas variables allá.
 
 ```env
-# Supabase (obligatorio)
+# URL y Claves de Supabase (las encuentras en Project Settings > API)
 SUPABASE_URL=https://tu-proyecto.supabase.co
 SUPABASE_ANON_KEY=tu_anon_key
 SUPABASE_SERVICE_ROLE_KEY=tu_service_role_key
 
-# Google Gemini (obligatorio)
+# Google Gemini (Consíguela en Google AI Studio)
 GEMINI_API_KEY=tu_gemini_api_key
 
-# OpenAI (opcional — fallback del agente)
+# OpenAI (Opcional — fallback)
 OPENAI_API_KEY=tu_openai_api_key
 
-# Next.js — exponer al frontend
+# Variables públicas para Next.js (Mismos valores que arriba)
 NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_anon_key
 ```
+
+### 4. Carga de Datos y Entrenar Modelos
+
+Antes de correr estos scripts de Python, **es crítico configurar el PYTHONPATH** para que Python reconozca los módulos.
+
+```bash
+# Mac/Linux:
+export PYTHONPATH=.
+
+# Windows (PowerShell):
+$env:PYTHONPATH="."
+```
+
+Luego, inicializa la base de datos y entrena el modelo:
+
+```bash
+# 1. Sembrar Supabase con los asegurados, pólizas, proveedores y siniestros base
+python -m src.ingestion.load_data
+
+# 2. Entrenar el modelo de Machine Learning (Isolation Forest) y guardar el .pkl
+python -m src.models.fraud_model
+
+# 3. Calcular el score_final para todos los siniestros insertados (Puede tomar tiempo)
+python -m src.ingestion.backfill_scores
+```
+
+> **Nota:** Si algún script falla por rate limits de Gemini (HTTP 429), espera unos minutos e inténtalo de nuevo.
+
+### 5. Ejecutar la Aplicación
+
+Deberás correr el Frontend y el Backend simultáneamente en diferentes terminales.
+
+**Terminal 1 (Backend - FastAPI):**
+```bash
+# Asegúrate de tener el entorno virtual activado y el PYTHONPATH configurado
+uvicorn src.app.main:app --reload --port 8000
+```
+> El backend estará corriendo en `http://localhost:8000`. Puedes revisar que la API responde entrando a `http://localhost:8000/docs`.
+
+**Terminal 2 (Frontend - Next.js):**
+```bash
+npm run dev
+```
+> El frontend estará corriendo en `http://localhost:3000`.
+
+---
+
+## 🛠️ Solución de Problemas (Troubleshooting)
+
+- **Errores de importación en Python (`ModuleNotFoundError: No module named 'src'`)**: Olvidaste configurar la variable `PYTHONPATH=.`. Revisa el Paso 4.
+- **Problemas en Producción / Vercel**: Asegúrate de que las variables de entorno en tu plataforma de hosting incluyan **todas** las variables, especialmente las `NEXT_PUBLIC_` para que el frontend pueda hablar con Supabase.
+- **Error `relation "public.siniestros" does not exist`**: Olvidaste ejecutar el código SQL en el SQL Editor de Supabase (Paso 2).
+- **Error conectando a Supabase desde la API**: Verifica que la `SUPABASE_SERVICE_ROLE_KEY` esté configurada, ya que el backend la requiere para tener privilegios de administrador.
 
 ---
 
