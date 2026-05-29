@@ -20,7 +20,7 @@ def vectorizar_todo():
             vector = ia.get_embedding(texto)
             if vector:
                 # Guardamos el vector en la nueva columna
-                supabase.table('siniestros').update({'embedding': vector}).eq('id_siniestro', sin['id_siniestro']).execute()
+                supabase.table('siniestros').update({'embedding_descripcion': vector}).eq('id_siniestro', sin['id_siniestro']).execute()
                 print(f"✅ Siniestro {sin['id_siniestro'][:8]}... vectorizado.")
                 
     print("🎉 ¡Base de datos lista para NLP!")

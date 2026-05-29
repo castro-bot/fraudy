@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -11,6 +11,8 @@ import {
   CheckCircle2,
   X,
   Building2,
+  Download,
+  PiggyBank,
 } from "lucide-react";
 import {
   BarChart,
@@ -130,6 +132,30 @@ export default function DashboardPage() {
     return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(amount);
   }
 
+  const ahorroPotencial = useMemo(() => stats.monto_total_riesgo * 0.60, [stats.monto_total_riesgo]);
+
+  const handleCSVExport = useCallback(() => {
+    const headers = ["ID","Asegurado","Ramo","Cobertura","Monto Reclamado","Score","Nivel","Fecha Ocurrencia"];
+    const rows = filtered.map(s => [
+      s.id_siniestro,
+      s.nombre_asegurado,
+      s.ramo,
+      s.cobertura,
+      s.monto_reclamado,
+      s.final_score,
+      s.nivel_riesgo,
+      s.fecha_ocurrencia,
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `fraudia_siniestros_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filtered]);
+
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Page header */}
@@ -140,10 +166,20 @@ export default function DashboardPage() {
             Casos ordenados por nivel de riesgo
           </p>
         </div>
+        <Button
+          id="btn-export-csv"
+          variant="outline"
+          size="sm"
+          onClick={handleCSVExport}
+          className="gap-2 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.08] text-xs"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Exportar CSV
+        </Button>
       </div>
 
       {/* KPI cards — clickable semáforo toggles */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {/* Total — no toggle, just info */}
         <Card className="border-white/[0.08] bg-white/[0.03]">
           <CardHeader className="flex flex-row items-center justify-between pb-1 pt-4 px-4">
@@ -227,6 +263,22 @@ export default function DashboardPage() {
             </p>
           </div>
         </button>
+
+        {/* Ahorro Potencial */}
+        <Card className="border-white/[0.08] bg-white/[0.03] sm:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between pb-1 pt-4 px-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Ahorro Potencial
+            </CardTitle>
+            <PiggyBank className="h-4 w-4 text-[var(--chart-1)]/70" />
+          </CardHeader>
+          <CardContent className="px-4 pb-4">
+            <div className="text-2xl font-bold text-[var(--chart-1)]">
+              {formatMXN(ahorroPotencial)}
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">60% del monto en riesgo</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Monto en riesgo + filter bar */}

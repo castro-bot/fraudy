@@ -15,8 +15,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { SemaforoBadge } from "@/components/semaforo-badge";
-import { MOCK_SINIESTROS } from "@/lib/mock-data";
-import type { Alerta } from "@/lib/mock-data";
+import { getSiniestro } from "@/lib/data";
+
+type Alerta = { señal: string; pts: number; tipo?: string; detalle?: string };
 
 function formatMXN(amount: number) {
   return new Intl.NumberFormat("es-MX", {
@@ -154,7 +155,7 @@ interface PageProps {
 
 export default async function SiniestroDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const siniestro = MOCK_SINIESTROS.find((s) => s.id_siniestro === id);
+  const siniestro = await getSiniestro(id);
 
   if (!siniestro) notFound();
 
@@ -203,7 +204,7 @@ export default async function SiniestroDetailPage({ params }: PageProps) {
             </CardContent>
           </Card>
 
-          {/* Agente explanation — placeholder */}
+          {/* Agente explanation */}
           <Card className="border-white/[0.08] bg-white/[0.03]">
             <CardHeader className="pb-3 px-4 pt-4">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -213,18 +214,26 @@ export default async function SiniestroDetailPage({ params }: PageProps) {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-                <div className="space-y-2">
-                  <div className="shimmer h-3 rounded-full bg-white/[0.06] w-full" />
-                  <div className="shimmer h-3 rounded-full bg-white/[0.06] w-4/5" />
-                  <div className="shimmer h-3 rounded-full bg-white/[0.06] w-11/12" />
-                  <div className="shimmer h-3 rounded-full bg-white/[0.06] w-3/4" />
-                </div>
-                <p className="mt-3 text-xs text-muted-foreground/60 text-center">
-                  Conectar con el agente Gemini →{" "}
-                  <Link href="/chat" className="underline underline-offset-2 hover:text-muted-foreground transition-colors">
-                    Abrir Chat
-                  </Link>
-                </p>
+                {(siniestro as any).explicacion_agente ? (
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {(siniestro as any).explicacion_agente}
+                  </p>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-full" />
+                      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-4/5" />
+                      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-11/12" />
+                      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-3/4" />
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground/60 text-center">
+                      Análisis pendiente →{" "}
+                      <Link href="/chat" className="underline underline-offset-2 hover:text-muted-foreground transition-colors">
+                        Abrir Chat
+                      </Link>
+                    </p>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

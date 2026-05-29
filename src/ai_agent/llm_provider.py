@@ -22,14 +22,14 @@ class LLMProvider:
             system_instruction = "Eres un asistente experto en seguros y antifraude."
             full_prompt = f"{system_instruction}\n\n{prompt}"
             response = self.client.models.generate_content(
-                model="gemini-3-flash-preview",
+                model="gemini-3.1-flash-lite",
                 contents=full_prompt,
             )
             return response.text.strip()
 
         elif self.provider_type == "openai":
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini", # <--- AQUÍ ESTÁ EL CAMBIO
+                model="gpt-5-nano-2025-08-07",
                 messages=[
                     {"role": "system", "content": "Eres un asistente experto en seguros y antifraude."},
                     {"role": "user", "content": prompt}
@@ -43,7 +43,7 @@ class LLMProvider:
         try:
             if self.provider_type == "google":
                 response = self.client.models.embed_content(
-                    model="text-embedding-004",
+                    model="gemini-embedding-2",
                     contents=text,
                 )
                 return response.embeddings[0].values
@@ -57,15 +57,15 @@ class LLMProvider:
         except Exception as e:
             print(f"Error generando embedding: {e}")
             return []
-        
+
     def chat(self, user_message: str, context_data: str) -> str:
         """Endpoint de chat interactivo con inyección de contexto de base de datos"""
         if self.provider_type == "openai":
             response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-5-nano-2025-08-07",
                 messages=[
                     {
-                        "role": "system", 
+                        "role": "system",
                         "content": (
                             "Eres FraudIA, un agente experto en riesgos para Aseguradora del Sur. "
                             "Responde de forma concisa y profesional. NUNCA acuses directamente de fraude, "
@@ -78,5 +78,17 @@ class LLMProvider:
                 max_completion_tokens=300
             )
             return response.choices[0].message.content.strip()
-        
-        return "Chat interactivo no implementado para Google aún."
+
+        elif self.provider_type == "google":
+            system = (
+                "Eres FraudIA, agente experto en riesgos para Aseguradora del Sur. "
+                "NUNCA acuses de fraude. Usa 'anomalía', 'patrón atípico', 'posible riesgo'. "
+                f"Contexto de base de datos:\n{context_data}"
+            )
+            response = self.client.models.generate_content(
+                model="gemini-3.1-flash-lite",
+                contents=f"{system}\n\nUsuario: {user_message}",
+            )
+            return response.text.strip()
+
+        return "Proveedor no configurado."
