@@ -67,7 +67,7 @@ class LLMProvider:
                     {
                         "role": "system",
                         "content": (
-                            "Eres FraudIA, un agente experto en riesgos para Aseguradora del Sur. "
+                            "Eres Fraudy, un agente experto en riesgos para Aseguradora del Sur. "
                             "Responde de forma concisa y profesional. NUNCA acuses directamente de fraude, "
                             "usa términos como 'anomalía', 'patrón atípico' o 'posible riesgo'. "
                             f"Basa tu respuesta en esta información extraída de la base de datos:\n{context_data}"
@@ -81,7 +81,7 @@ class LLMProvider:
 
         elif self.provider_type == "google":
             system = (
-                "Eres FraudIA, agente experto en riesgos para Aseguradora del Sur. "
+                "Eres Fraudy, agente experto en riesgos para Aseguradora del Sur. "
                 "NUNCA acuses de fraude. Usa 'anomalía', 'patrón atípico', 'posible riesgo'. "
                 f"Contexto de base de datos:\n{context_data}"
             )

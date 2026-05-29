@@ -1,8 +1,8 @@
-# Limitaciones, Riesgos y Consideraciones Éticas — FraudIA
+# Limitaciones, Riesgos y Consideraciones Éticas — Fraudy
 
 ## Principio Fundamental
 
-> FraudIA es una herramienta de **apoyo al analista**, no un sistema decisor.  
+> Fraudy es una herramienta de **apoyo al analista**, no un sistema decisor.  
 > Ninguna alerta debe traducirse en rechazo automático de un siniestro ni en acusación formal.  
 > **Toda decisión final es responsabilidad del analista humano.**
 

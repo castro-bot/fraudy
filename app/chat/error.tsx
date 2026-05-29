@@ -17,7 +17,7 @@ export default function ChatError(
         </div>
         <h2 className="text-lg font-semibold">Error de conexión</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          No se pudo conectar con el agente FraudIA. Verifica tu conexión e intenta de nuevo.
+          No se pudo conectar con el agente Fraudy. Verifica tu conexión e intenta de nuevo.
         </p>
         <div className="mt-6 flex items-center justify-center gap-3">
           <Button variant="outline" onClick={() => window.history.back()}>

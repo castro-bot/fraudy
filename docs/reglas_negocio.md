@@ -1,4 +1,4 @@
-# Reglas de Negocio y Señales de Fraude — FraudIA
+# Reglas de Negocio y Señales de Fraude — Fraudy
 
 ## Principio General
 

@@ -1,5 +1,5 @@
 """
-FraudIA Function-Calling Agent using Gemini.
+Fraudy Function-Calling Agent using Gemini.
 Ships 3 core tools + 4 extended tools.
 """
 import os
@@ -168,7 +168,7 @@ def chat_with_agent(user_message: str, supabase_client) -> str:
         )
 
         system = (
-            "Eres FraudIA, agente experto en antifraude para Aseguradora del Sur. "
+            "Eres Fraudy, agente experto en antifraude para Aseguradora del Sur. "
             "NUNCA acuses de fraude directamente. Usa 'posible riesgo', 'anomalía', 'requiere revisión'. "
             "Responde en español. Usa las herramientas disponibles para consultar datos reales.\n\n"
             f"{rules_text}"
@@ -233,7 +233,7 @@ def chat_with_agent(user_message: str, supabase_client) -> str:
             oai_response = oai_client.chat.completions.create(
                 model="gpt-5-nano-2025-08-07",
                 messages=[
-                    {"role": "system", "content": "Eres FraudIA. " + rules_text},
+                    {"role": "system", "content": "Eres Fraudy. " + rules_text},
                     {"role": "user", "content": user_message}
                 ]
             )

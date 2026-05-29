@@ -1,10 +1,10 @@
-# 🔍 FraudIA — Detector de Posibles Fraudes en Siniestros
+# 🔍 Fraudy — Detector de Posibles Fraudes en Siniestros
 
 ## 🌟 Introducción
 
-Bienvenidos a **FraudIA**, nuestro proyecto para el **hackIAthon** (organizado por **Viamatica** e **IT ahora**). Abordamos el **Reto Aseguradora del Sur**: *Detector de Posibles Fraudes en Siniestros usando Inteligencia Artificial*.
+Bienvenidos a **Fraudy**, nuestro proyecto para el **hackIAthon**. Abordamos el **Reto Aseguradora del Sur**: *Detector de Posibles Fraudes en Siniestros usando Inteligencia Artificial*.
 
-FraudIA es un prototipo funcional que analiza siniestros de seguros y genera un **score de riesgo explicable**, combinando reglas de negocio, detección de anomalías con Machine Learning, análisis semántico de narrativas y un agente conversacional con IA generativa. La solución genera **alertas de revisión**, no acusaciones automáticas de fraude.
+Fraudy es un prototipo funcional que analiza siniestros de seguros y genera un **score de riesgo explicable**, combinando reglas de negocio, detección de anomalías con Machine Learning, análisis semántico de narrativas y un agente conversacional con IA generativa. La solución genera **alertas de revisión**, no acusaciones automáticas de fraude.
 
 ---
 
@@ -29,7 +29,7 @@ FraudIA es un prototipo funcional que analiza siniestros de seguros y genera un 
 
 Los analistas de siniestros de Aseguradora del Sur procesan cientos de reclamos bajo presión de tiempo. La detección de fraude depende hoy de la experiencia individual del analista, reglas dispersas y revisiones documentales lentas.
 
-**FraudIA** actúa como el primer nivel de triage: cada siniestro recibe un score de riesgo (0–100), una clasificación semáforo (🟢 Verde / 🟡 Amarillo / 🔴 Rojo), y una explicación en lenguaje natural de qué señales lo activaron. El analista decide; la IA prioriza y fundamenta.
+**Fraudy** actúa como el primer nivel de triage: cada siniestro recibe un score de riesgo (0–100), una clasificación semáforo (🟢 Verde / 🟡 Amarillo / 🔴 Rojo), y una explicación en lenguaje natural de qué señales lo activaron. El analista decide; la IA prioriza y fundamenta.
 
 ---
 
@@ -50,10 +50,10 @@ Los analistas de siniestros de Aseguradora del Sur procesan cientos de reclamos 
 
 **Frontend:**
 - Next.js 16 (App Router)
-- React 18
+- React 19
 - Tailwind CSS + Shadcn UI
 - Recharts (visualizaciones)
-- SWR (caching de datos)
+- Fetch nativo (data fetching)
 
 **Backend:**
 - Python 3.11+
@@ -203,7 +203,7 @@ data/
 ## 📂 Estructura del Proyecto
 
 ```text
-fraudia-claims/
+fraudy-claims/
 ├── README.md
 ├── requirements.txt
 ├── .env.example
@@ -222,10 +222,14 @@ fraudia-claims/
 │   │   ├── claims_agent.py           # Agente conversacional Gemini
 │   │   ├── function_agent.py         # Function-calling tools
 │   │   ├── pdf_analyzer.py           # Análisis de PDFs con Gemini
-│   │   └── llm_provider.py           # Abstracción LLM (Gemini / OpenAI fallback)
+│   │   ├── llm_provider.py           # Abstracción LLM (Gemini / OpenAI fallback)
+│   │   └── setup_file_search.py      # Configuración File Search API
 │   └── ingestion/
 │       ├── load_data.py              # Carga y seed de Supabase
-│       └── backfill_scoring.py       # Re-scoring en batch
+│       ├── backfill_scores.py        # Re-scoring en batch
+│       ├── load_official.py          # Carga dataset oficial
+│       ├── seed_data.py              # Seed inicial
+│       └── vectorize_db.py           # Vectorización de narrativas en pgvector
 │
 ├── app/                              # Next.js App Router
 │   ├── page.tsx                      # Dashboard principal
@@ -233,6 +237,7 @@ fraudia-claims/
 │   ├── chat/                         # Chat con el agente de IA
 │   ├── red/                          # Red de relaciones
 │   ├── nuevo/                        # Carga de nuevo siniestro
+│   ├── proveedores/                  # Vista de proveedores
 │   └── api/                          # Route handlers (Next.js)
 │
 ├── components/                       # Componentes React (Shadcn UI)
@@ -253,8 +258,8 @@ fraudia-claims/
 ### 1. Clonar e Instalar Dependencias
 
 ```bash
-git clone https://github.com/drahcirok/fraudia-claims.git
-cd fraudia-claims
+git clone https://github.com/drahcirok/fraudy-claims.git
+cd fraudy-claims
 
 # Frontend
 npm install
@@ -282,7 +287,7 @@ python -m src.ingestion.load_data
 python -m src.models.fraud_model
 
 # Backfill de scores para todos los siniestros
-python -m src.ingestion.backfill_scoring
+python -m src.ingestion.backfill_scores
 ```
 
 ### 4. Ejecutar
@@ -292,8 +297,9 @@ python -m src.ingestion.backfill_scoring
 npm run dev          # Frontend en http://localhost:3000
 uvicorn src.app.main:app --reload --port 8000   # Backend en http://localhost:8000
 
-# Opción B — Docker
-docker-compose up --build
+# Opción B — Docker (solo backend)
+docker-compose up --build   # Levanta FastAPI en :8000
+npm run dev                 # Frontend en :3000 (separado)
 ```
 
 ---

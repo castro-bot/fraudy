@@ -1,8 +1,8 @@
-# Uso de Inteligencia Artificial — FraudIA
+# Uso de Inteligencia Artificial — Fraudy
 
 ## Enfoque Híbrido
 
-FraudIA combina cuatro capas de IA, cada una con un rol específico:
+Fraudy combina cuatro capas de IA, cada una con un rol específico:
 
 | Capa | Técnica | Herramienta | Propósito |
 |------|---------|-------------|-----------|

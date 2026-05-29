@@ -10,7 +10,7 @@ export default function GlobalNotFound() {
         </div>
         <h2 className="text-lg font-semibold">Página no encontrada</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          La ruta solicitada no existe en FraudIA. Revisa la URL o vuelve al inicio.
+          La ruta solicitada no existe en Fraudy. Revisa la URL o vuelve al inicio.
         </p>
         <div className="mt-6">
           <Link

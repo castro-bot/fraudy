@@ -33,7 +33,7 @@ function BuildingIcon(props: React.ComponentProps<"svg">) {
 export default function ChatPage() {
   const [input, setInput] = useState("");
   const { messages, sendMessage, status, error } = useChat({
-    id: 'fraudia-chat',
+    id: 'fraudy-chat',
     transport: new DefaultChatTransport({ api: '/api/chat' }),
   });
   const isLoading = status === 'submitted' || status === 'streaming';
@@ -56,7 +56,7 @@ export default function ChatPage() {
             <Bot className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-bold tracking-tight">FraudIA</h1>
+            <h1 className="text-base font-bold tracking-tight">Fraudy</h1>
             <p className="text-xs text-muted-foreground">
               Asistente de análisis de siniestros
             </p>

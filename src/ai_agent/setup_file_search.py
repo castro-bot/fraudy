@@ -11,12 +11,12 @@ def main():
     
     file_path = "data/raw/evento/Evento_Datasets_Sinteticos_Fraude_500_v2.xlsx"
     print(f"Uploading file {file_path} to Gemini...")
-    sample_file = client.files.upload(file=file_path, config={'name': 'fraudia-dataset-excel'})
+    sample_file = client.files.upload(file=file_path, config={'name': 'fraudy-dataset-excel'})
 
     print("Creating File Search Store...")
     file_search_store = client.file_search_stores.create(
         config={
-            'display_name': 'fraudia-dataset-store',
+            'display_name': 'fraudy-dataset-store',
             'embedding_model': 'models/gemini-embedding-2'
         }
     )

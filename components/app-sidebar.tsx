@@ -34,7 +34,7 @@ const NAV_ITEMS = [
     label: "Chat",
     href: "/chat",
     icon: MessageSquare,
-    description: "Agente FraudIA",
+    description: "Agente Fraudy",
   },
   {
     label: "Nuevo Siniestro",
@@ -68,7 +68,7 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-bold tracking-tight text-foreground">
-              FraudIA
+              Fraudy
             </span>
             <span className="text-[11px] text-muted-foreground">
               Aseguradora del Sur

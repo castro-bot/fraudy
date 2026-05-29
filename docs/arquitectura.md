@@ -1,8 +1,8 @@
-# Arquitectura del Sistema — FraudIA
+# Arquitectura del Sistema — Fraudy
 
 ## Visión General
 
-FraudIA sigue una arquitectura de **tres capas** con IA integrada en el backend:
+Fraudy sigue una arquitectura de **tres capas** con IA integrada en el backend:
 
 1. **Capa de Presentación** — Next.js App Router (frontend)
 2. **Capa de Lógica de Negocio** — FastAPI (backend Python)

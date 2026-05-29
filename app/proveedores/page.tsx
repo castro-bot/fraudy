@@ -58,7 +58,7 @@ export default function ProveedoresPage() {
         <div>
           <h1 className="text-xl font-bold">Ranking de Proveedores</h1>
           <p className="text-sm text-muted-foreground">
-            Concentración de alertas por proveedor — ordenado por siniestros Rojo
+            Concentración de alertas por proveedor
           </p>
         </div>
       </div>

@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: "Invalid request: messages must be an array" }), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
-  const systemPrompt = `Eres FraudIA, agente experto en antifraude para Aseguradora del Sur.
+  const systemPrompt = `Eres Fraudy, agente experto en antifraude para Aseguradora del Sur.
 NUNCA acuses de fraude directamente. Usa 'posible riesgo', 'anomalía', 'requiere revisión'.
 Responde en español. Usa las herramientas disponibles para consultar datos reales.
 Limita tus respuestas para que sean concisas pero informativas.

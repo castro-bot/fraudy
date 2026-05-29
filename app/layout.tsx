@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "FraudIA — Detección de Fraude en Siniestros | Aseguradora del Sur",
+  title: "Fraudy — Detección de Fraude en Siniestros | Aseguradora del Sur",
   description:
     "Sistema de análisis de posibles fraudes en siniestros de seguros. Score híbrido con reglas, ML e IA generativa.",
 };
@@ -31,7 +31,7 @@ export default function RootLayout({
               <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
               <div className="h-4 w-px bg-white/[0.08]" />
               <span className="text-xs text-muted-foreground">
-                FraudIA · Aseguradora del Sur
+                Fraudy · Aseguradora del Sur
               </span>
             </header>
             <main className="flex-1 overflow-auto">{children}</main>

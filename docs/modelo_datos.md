@@ -1,4 +1,4 @@
-# Modelo de Datos — FraudIA
+# Modelo de Datos — Fraudy
 
 ## Diagrama Entidad-Relación
 
