@@ -146,14 +146,11 @@ export async function getSiniestrosPage(
 
 export async function getSiniestro(id: string): Promise<Siniestro | null> {
   if (USE_API) {
-    try {
-      const res = await fetch(`${API_URL}/api/siniestros/${id}`, { cache: "no-store" });
-      if (!res.ok) return null;
-      const raw = await res.json();
-      return mapBackendToUI(raw);
-    } catch {
-      return null;
-    }
+    const res = await fetch(`${API_URL}/api/siniestros/${id}`, { cache: "no-store" });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`Error al cargar el siniestro (${res.status})`);
+    const raw = await res.json();
+    return mapBackendToUI(raw);
   }
   return MOCK_SINIESTROS.find((s) => s.id_siniestro === id) ?? null;
 }

@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
-app = FastAPI(title="FraudIA API - Aseguradora del Sur")
+app = FastAPI(title="Fraudy API - Aseguradora del Sur")
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,7 +42,7 @@ class ChatMessage(BaseModel):
 
 @app.get("/")
 def read_root():
-    return {"status": "ok", "message": "Backend de FraudIA corriendo al 100%"}
+    return {"status": "ok", "message": "Backend de Fraudy corriendo al 100%"}
 
 
 @app.get("/api/siniestros")
@@ -143,8 +143,10 @@ def get_siniestro_detail(id: str):
             docs = sin.pop("documentos", None) or []
         except Exception:
             # Fallback: sequential queries
-            res = supabase.table("siniestros").select("*").eq("id_siniestro", id).single().execute()
-            sin = res.data
+            res = supabase.table("siniestros").select("*").eq("id_siniestro", id).execute()
+            if not res.data:
+                raise HTTPException(status_code=404, detail="Siniestro not found")
+            sin = res.data[0]
 
             asegurado = {}
             if sin.get("id_asegurado"):
@@ -209,6 +211,8 @@ def get_siniestro_detail(id: str):
             "pdf_analysis": pdf_analysis,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
