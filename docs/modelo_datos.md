@@ -151,4 +151,4 @@ CREATE INDEX ON siniestros (placa_vehiculo);
 
 - Todos los identificadores son sintéticos — no corresponden a personas reales.
 - `etiqueta_fraude_simulada` (0/1) existe en el dataset de entrenamiento pero **no** en producción; el modelo es no supervisado.
-- `embedding_descripcion` usa dimensión 768 (`text-embedding-004` de Gemini).
+- `embedding_descripcion` usa dimensión 768 (`gemini-embedding-2` de Gemini).

@@ -73,7 +73,7 @@ Verde si:   score_final < 41   y  sin RF activos
 
 ## Lógica de Similitud de Narrativas
 
-1. Al ingresar un siniestro, `descripcion_hechos` se vectoriza con `text-embedding-004` (Gemini).
+1. Al ingresar un siniestro, `descripcion_hechos` se vectoriza con `gemini-embedding-2` (Gemini).
 2. Se calcula similitud coseno contra todos los embeddings previos en pgvector.
 3. El máximo (`similitud_narrativa_max`) se almacena en el siniestro.
 4. Si > 0.85 → Señal 14 activa + RF07.

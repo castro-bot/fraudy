@@ -8,8 +8,8 @@ Fraudy combina cuatro capas de IA, cada una con un rol específico:
 |------|---------|-------------|-----------|
 | **Rules Engine** | Reglas de negocio ponderadas | Python puro | Trazabilidad, señales específicas de dominio |
 | **Anomaly Detection** | Isolation Forest (ML no supervisado) | scikit-learn | Detectar outliers numéricos sin etiquetas |
-| **NLP / Similaridad** | Embeddings + similitud coseno | Gemini `text-embedding-004` + pgvector | Detectar narrativas clonadas o sospechosamente similares |
-| **Agente Explicativo** | LLM con function-calling | Gemini `gemini-2.0-flash` | Explicaciones en lenguaje natural + chat |
+| **NLP / Similaridad** | Embeddings + similitud coseno | Gemini `gemini-embedding-2` + pgvector | Detectar narrativas clonadas o sospechosamente similares |
+| **Agente Explicativo** | LLM con function-calling | Gemini `gemini-3-flash-preview` | Explicaciones en lenguaje natural + chat |
 
 ---
 
@@ -64,7 +64,7 @@ Las reglas tienen más peso porque son trazables y explicables. El ML complement
 
 **Archivo**: `src/ai_agent/claims_agent.py`
 
-1. `descripcion_hechos` de cada siniestro se envía a Gemini `text-embedding-004` → vector de 768 dimensiones.
+1. `descripcion_hechos` de cada siniestro se envía a Gemini `gemini-embedding-2` → vector de 768 dimensiones.
 2. Se almacena en la columna `embedding_descripcion` (tipo `vector`) en Supabase.
 3. Al ingresar un siniestro nuevo, se consulta pgvector con `<=>` (distancia coseno) para encontrar los k vecinos más cercanos.
 4. `similitud_narrativa_max` = máxima similitud encontrada.

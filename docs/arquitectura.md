@@ -28,7 +28,7 @@ flowchart TD
         BLEND[Score Blend\n70% reglas + 30% ML]
         AGENT[Gemini Agent\nfunction-calling]
         PDF[PDF Analyzer\nGemini File Search]
-        EMB[Embeddings\ntext-embedding-004]
+        EMB[Embeddings\ngemini-embedding-2]
     end
 
     subgraph Data["Datos — Supabase"]
@@ -37,7 +37,7 @@ flowchart TD
     end
 
     subgraph External["APIs Externas"]
-        GEM[Google Gemini\ngemini-2.0-flash]
+        GEM[Google Gemini\ngemini-3-flash-preview]
     end
 
     DASH -->|SWR fetch| API

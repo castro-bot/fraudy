@@ -2,8 +2,8 @@
 
 ## Principio Fundamental
 
-> Fraudy es una herramienta de **apoyo al analista**, no un sistema decisor.  
-> Ninguna alerta debe traducirse en rechazo automático de un siniestro ni en acusación formal.  
+> Fraudy es una herramienta de **apoyo al analista**, no un sistema decisor.
+> Ninguna alerta debe traducirse en rechazo automático de un siniestro ni en acusación formal.
 > **Toda decisión final es responsabilidad del analista humano.**
 
 ---
@@ -32,7 +32,7 @@
 | Limitación | Impacto | Mitigación |
 |------------|---------|------------|
 | Similitud textual ≠ fraude | Dos accidentes legítimos pueden tener descripciones similares | RF07 es Amarillo, no Rojo; requiere revisión, no conclusión |
-| Calidad de embeddings en español | Gemini `text-embedding-004` funciona bien en español, pero jerga regional puede afectar | Evaluar con muestras reales en fase piloto |
+| Calidad de embeddings en español | Gemini `gemini-embedding-2` funciona bien en español, pero jerga regional puede afectar | Evaluar con muestras reales en fase piloto |
 
 ### Agente LLM
 

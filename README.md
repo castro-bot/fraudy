@@ -65,8 +65,8 @@ Los analistas de siniestros de Aseguradora del Sur procesan cientos de reclamos 
 - pgvector (búsqueda semántica de narrativas)
 
 **IA y Modelos:**
-- **LLM**: Google Gemini (`gemini-2.0-flash`) con function-calling
-- **Embeddings**: `models/text-embedding-004` (Gemini)
+- **LLM**: Google Gemini (`gemini-3-flash-preview`) con function-calling
+- **Embeddings**: `models/gemini-embedding-2` (Gemini)
 - **Anomaly Detection**: Isolation Forest (scikit-learn) + StandardScaler
 - **PDF Analysis**: Gemini File Search API
 
@@ -87,8 +87,8 @@ flowchart TD
     BE -->|Queries| DB[(Supabase\nPostgreSQL + pgvector)]
     BE -->|Evalúa señales| RU[Rules Engine\n14 señales + 7 RF]
     BE -->|Score anomalía| ML[Isolation Forest\nML Model]
-    BE -->|Embeddings narrativa| EMB[Gemini Embeddings\ntext-embedding-004]
-    BE -->|Explicaciones / Chat| LLM[Gemini LLM\ngemini-2.0-flash]
+    BE -->|Embeddings narrativa| EMB[Gemini Embeddings\ngemini-embedding-2]
+    BE -->|Explicaciones / Chat| LLM[Gemini LLM\ngemini-3-flash-preview]
     BE -->|Análisis PDF| PDF[Gemini File Search\nFacturas / Partes / Declaraciones]
 
     RU -->|score_reglas 0-100| BLEND[Score Híbrido\n70% reglas + 30% anomalía]
