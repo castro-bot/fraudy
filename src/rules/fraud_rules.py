@@ -19,6 +19,9 @@ def _alerta(señal: str, pts: int, tipo: str = "INFO") -> dict:
     return {"señal": señal, "pts": pts, "tipo": tipo}
 
 
+from functools import lru_cache
+
+@lru_cache(maxsize=1000)
 def _count_placa(placa: str, meses: int = 18) -> int:
     """Count siniestros for a given placa in last N months."""
     if not placa:
@@ -30,6 +33,7 @@ def _count_placa(placa: str, meses: int = 18) -> int:
         return 0
 
 
+@lru_cache(maxsize=1000)
 def _count_placa_different_asegurado(placa: str, id_asegurado: str) -> int:
     """Count siniestros with same placa but different asegurado."""
     if not placa:
@@ -242,12 +246,6 @@ def evaluar_siniestro(siniestro: dict, asegurado: dict | None = None) -> dict:
 
     score = min(score, 100)
 
-    nivel_riesgo = "Verde"
-    if score >= 76:
-        nivel_riesgo = "Rojo"
-    elif score >= 41:
-        nivel_riesgo = "Amarillo"
-
     # Blend with Isolation Forest (graceful fallback if model not trained yet)
     score_anomalia = 0
     try:
@@ -257,6 +255,18 @@ def evaluar_siniestro(siniestro: dict, asegurado: dict | None = None) -> dict:
         pass
 
     final_score = min(int(0.7 * score + 0.3 * score_anomalia), 100)
+
+    # Apply score floors to final_score as well to guarantee critical flags escalate the risk
+    if rf_critico:
+        final_score = max(final_score, 76)
+    elif rf_amarillo:
+        final_score = max(final_score, 41)
+
+    nivel_riesgo = "Verde"
+    if final_score >= 76:
+        nivel_riesgo = "Rojo"
+    elif final_score >= 41:
+        nivel_riesgo = "Amarillo"
 
     return {
         "score_reglas": score,

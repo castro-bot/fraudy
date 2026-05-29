@@ -10,12 +10,14 @@ import {
   User,
   Building2,
   Hash,
+  ScanText,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { SemaforoBadge } from "@/components/semaforo-badge";
-import { getSiniestro } from "@/lib/data";
+import { getSiniestro, getSiniestroExplicacion, getSiniestroPdfAnalysis } from "@/lib/data";
+import { Suspense } from "react";
 
 type Alerta = { señal: string; pts: number; tipo?: string; detalle?: string };
 
@@ -153,6 +155,135 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+async function ExplicacionAgenteAsync({ id, initialData }: { id: string, initialData?: string }) {
+  const explicacion = initialData || await getSiniestroExplicacion(id);
+  
+  if (!explicacion) {
+    return (
+      <>
+        <div className="space-y-2">
+          <div className="shimmer h-3 rounded-full bg-white/[0.06] w-full" />
+          <div className="shimmer h-3 rounded-full bg-white/[0.06] w-4/5" />
+          <div className="shimmer h-3 rounded-full bg-white/[0.06] w-11/12" />
+          <div className="shimmer h-3 rounded-full bg-white/[0.06] w-3/4" />
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground/60 text-center">
+          Análisis pendiente →{" "}
+          <Link href="/chat" className="underline underline-offset-2 hover:text-muted-foreground transition-colors">
+            Abrir Chat
+          </Link>
+        </p>
+      </>
+    );
+  }
+
+  return (
+    <p className="text-sm text-muted-foreground leading-relaxed">
+      {explicacion}
+    </p>
+  );
+}
+
+function ExplicacionFallback() {
+  return (
+    <div className="space-y-2">
+      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-full" />
+      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-4/5" />
+      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-11/12" />
+      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-3/4" />
+      <p className="mt-3 text-xs text-muted-foreground/60 text-center">
+        Analizando...
+      </p>
+    </div>
+  );
+}
+
+async function PdfAnalysisAsync({ id, initialData }: { id: string, initialData?: any }) {
+  const pdfAnalysis = initialData || await getSiniestroPdfAnalysis(id);
+  
+  if (!pdfAnalysis) return null;
+
+  return (
+    <Card className="border-white/[0.08] bg-white/[0.03]">
+      <CardHeader className="pb-3 px-5 pt-4 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <ScanText className="h-4 w-4 text-[var(--amarillo)]" />
+            Análisis Multimodal de Evidencias
+          </CardTitle>
+          {pdfAnalysis.inconsistencia_detectada ? (
+            <Badge className="border-[var(--rojo)]/30 text-[var(--rojo)] bg-[var(--rojo)]/10 text-[10px] px-2 py-0.5 font-medium">
+              Inconsistencia Detectada
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="border-[var(--verde)]/30 text-[var(--verde)] bg-[var(--verde)]/10 text-[10px] px-2 py-0.5 font-medium">
+              Sin Inconsistencias
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="px-5 pt-4 pb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Monto Documento</p>
+              <p className="text-sm font-medium">{pdfAnalysis.monto_documento ? formatMXN(pdfAnalysis.monto_documento) : 'No detectado'}</p>
+            </div>
+            <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">Fecha Documento</p>
+              <p className="text-sm font-medium">{pdfAnalysis.fecha_documento || 'No detectada'}</p>
+            </div>
+        </div>
+        { pdfAnalysis.observacion && (
+          <div className={`rounded-lg border p-4 ${
+            pdfAnalysis.inconsistencia_detectada
+              ? 'border-[var(--rojo)]/20 bg-[var(--rojo)]/5'
+              : 'border-white/[0.06] bg-white/[0.02]'
+          }`}>
+            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Observación del Modelo de Visión</p>
+            <p className="text-sm text-foreground/90 leading-relaxed">
+              {pdfAnalysis.observacion}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PdfAnalysisFallback() {
+  return (
+    <Card className="border-white/[0.08] bg-white/[0.03]">
+      <CardHeader className="pb-3 px-5 pt-4 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <ScanText className="h-4 w-4 text-muted-foreground/50" />
+            Análisis Multimodal de Evidencias
+          </CardTitle>
+          <Badge variant="outline" className="border-white/[0.06] text-muted-foreground bg-white/[0.02] text-[10px] px-2 py-0.5 font-medium">
+            Procesando...
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="px-5 pt-4 pb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
+            <div className="shimmer h-3 rounded-full bg-white/[0.06] w-24 mb-2" />
+            <div className="shimmer h-4 rounded-full bg-white/[0.06] w-32" />
+          </div>
+          <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
+            <div className="shimmer h-3 rounded-full bg-white/[0.06] w-24 mb-2" />
+            <div className="shimmer h-4 rounded-full bg-white/[0.06] w-32" />
+          </div>
+        </div>
+        <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
+          <div className="shimmer h-3 rounded-full bg-white/[0.06] w-full" />
+          <div className="shimmer h-3 rounded-full bg-white/[0.06] w-4/5" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default async function SiniestroDetailPage({ params }: PageProps) {
   const { id } = await params;
   const siniestro = await getSiniestro(id);
@@ -198,8 +329,8 @@ export default async function SiniestroDetailPage({ params }: PageProps) {
                   <p className="text-xl font-bold mt-0.5">{siniestro.anomaly_score}</p>
                 </div>
               </div>
-              <p className="mt-2 text-[10px] text-muted-foreground/60 text-center">
-                Final = 70% Reglas + 30% ML
+              <p className="mt-3 text-[10px] text-muted-foreground/60 text-center">
+                Score Híbrido: Reglas Estáticas + Anomaly Detection (ML)
               </p>
             </CardContent>
           </Card>
@@ -214,26 +345,9 @@ export default async function SiniestroDetailPage({ params }: PageProps) {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-                {(siniestro as any).explicacion_agente ? (
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {(siniestro as any).explicacion_agente}
-                  </p>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-full" />
-                      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-4/5" />
-                      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-11/12" />
-                      <div className="shimmer h-3 rounded-full bg-white/[0.06] w-3/4" />
-                    </div>
-                    <p className="mt-3 text-xs text-muted-foreground/60 text-center">
-                      Análisis pendiente →{" "}
-                      <Link href="/chat" className="underline underline-offset-2 hover:text-muted-foreground transition-colors">
-                        Abrir Chat
-                      </Link>
-                    </p>
-                  </>
-                )}
+                <Suspense fallback={<ExplicacionFallback />}>
+                  <ExplicacionAgenteAsync id={id} initialData={(siniestro as any).explicacion_agente} />
+                </Suspense>
               </div>
             </CardContent>
           </Card>
@@ -272,6 +386,11 @@ export default async function SiniestroDetailPage({ params }: PageProps) {
               )}
             </CardContent>
           </Card>
+
+          {/* Análisis Multimodal */}
+          <Suspense fallback={<PdfAnalysisFallback />}>
+            <PdfAnalysisAsync id={id} initialData={(siniestro as any).pdf_analysis} />
+          </Suspense>
 
           {/* Datos del siniestro */}
           <Card className="border-white/[0.08] bg-white/[0.03]">
@@ -319,7 +438,7 @@ export default async function SiniestroDetailPage({ params }: PageProps) {
                 <DataRow label="Fecha ocurrencia" value={siniestro.fecha_ocurrencia} />
                 <DataRow label="Fecha reporte" value={siniestro.fecha_reporte} />
                 <DataRow
-                  label="Días ocurrencia → reporte"
+                  label="Días transcurridos"
                   value={`${siniestro.dias_entre_ocurrencia_reporte} días`}
                 />
                 <DataRow
@@ -337,7 +456,7 @@ export default async function SiniestroDetailPage({ params }: PageProps) {
                 <div className="flex items-center gap-2 mb-2">
                   <Hash className="h-3.5 w-3.5 text-muted-foreground/60" />
                   <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                    Descripción del Siniestro
+                    Descripción
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">

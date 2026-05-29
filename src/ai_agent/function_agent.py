@@ -152,50 +152,91 @@ def run_tool(name: str, args: dict, sb) -> str:
 # ── Agent Loop ───────────────────────────────────────────────────────
 
 def chat_with_agent(user_message: str, supabase_client) -> str:
-    client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
-    system = (
-        "Eres FraudIA, agente experto en antifraude para Aseguradora del Sur. "
-        "NUNCA acuses de fraude directamente. Usa 'posible riesgo', 'anomalía', 'requiere revisión'. "
-        "Responde en español. Usa las herramientas disponibles para consultar datos reales. "
-        "Formatea con Markdown (listas, negritas) para el dashboard."
-    )
-    messages = [types.Content(role="user", parts=[types.Part(text=f"{system}\n\n{user_message}")])]
+    # --- GEMINI ATTEMPT ---
+    try:
+        client = genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
 
-    for _ in range(8):  # max iterations guard
-        response = client.models.generate_content(
-            model="gemini-3.1-flash-lite",
-            contents=messages,
-            config=types.GenerateContentConfig(tools=[TOOL])
-        )
-        candidate = response.candidates[0]
-
-        if not candidate.content or not candidate.content.parts:
-            break
-
-        has_tool_call = any(
-            hasattr(p, "function_call") and p.function_call
-            for p in candidate.content.parts
+        rules_text = (
+            "Considera estas REGLAS CRÍTICAS (RF-01 a RF-07) al evaluar siniestros:\n"
+            "- RF-01: Cobertura es Robo -> Crítico\n"
+            "- RF-02: Documentos dice 'Sí' pero la descripción menciona falta de factura o acta -> Crítico\n"
+            "- RF-03: Proveedor en lista restrictiva -> Crítico\n"
+            "- RF-04: Siniestro grave (volcadura, múltiple) y nocturno -> Crítico\n"
+            "- RF-05: Siniestro ocurre con menos de 2 días desde el inicio de la póliza -> Riesgo Amarillo/Crítico\n"
+            "- RF-06: Robo con demora de reporte > 4 días -> Riesgo Amarillo\n"
+            "- RF-07: Narrativa clonada (similitud alta) -> Riesgo Amarillo\n"
         )
 
-        if not has_tool_call:
-            return "".join(
-                p.text for p in candidate.content.parts
-                if hasattr(p, "text") and p.text
+        system = (
+            "Eres FraudIA, agente experto en antifraude para Aseguradora del Sur. "
+            "NUNCA acuses de fraude directamente. Usa 'posible riesgo', 'anomalía', 'requiere revisión'. "
+            "Responde en español. Usa las herramientas disponibles para consultar datos reales.\n\n"
+            f"{rules_text}"
+        )
+        messages = [types.Content(role="user", parts=[types.Part(text=f"{system}\n\n{user_message}")])]
+
+        # Tools configuration
+        tools = [TOOL]
+        store_name = os.environ.get("GEMINI_FILE_SEARCH_STORE")
+        if store_name:
+            tools.append(types.Tool(file_search=types.FileSearch(file_search_store_names=[store_name])))
+
+        for _ in range(8):  # max iterations guard
+            response = client.models.generate_content(
+                model="gemini-3-flash-preview",
+                contents=messages,
+                config=types.GenerateContentConfig(tools=tools)
+            )
+            candidate = response.candidates[0]
+
+            if not candidate.content or not candidate.content.parts:
+                break
+
+            has_tool_call = any(
+                hasattr(p, "function_call") and p.function_call
+                for p in candidate.content.parts
             )
 
-        # Execute tool calls
-        messages.append(candidate.content)
-        tool_results = []
-        for part in candidate.content.parts:
-            if hasattr(part, "function_call") and part.function_call:
-                fc = part.function_call
-                result = run_tool(fc.name, dict(fc.args), supabase_client)
-                tool_results.append(types.Part(
-                    function_response=types.FunctionResponse(
-                        name=fc.name,
-                        response={"result": result}
-                    )
-                ))
-        messages.append(types.Content(role="tool", parts=tool_results))
+            if not has_tool_call:
+                return "".join(
+                    p.text for p in candidate.content.parts
+                    if hasattr(p, "text") and p.text
+                )
 
-    return "No pude obtener una respuesta. Intenta reformular la pregunta."
+            # Execute tool calls
+            messages.append(candidate.content)
+            tool_results = []
+            for part in candidate.content.parts:
+                if hasattr(part, "function_call") and part.function_call:
+                    fc = part.function_call
+                    result = run_tool(fc.name, dict(fc.args), supabase_client)
+                    tool_results.append(types.Part(
+                        function_response=types.FunctionResponse(
+                            name=fc.name,
+                            response={"result": result}
+                        )
+                    ))
+            messages.append(types.Content(role="tool", parts=tool_results))
+
+        return "No pude obtener una respuesta. Intenta reformular la pregunta."
+
+    except Exception as e:
+        print(f"Gemini API failed: {e}. Falling back to OpenAI.")
+        # --- OPENAI FALLBACK ---
+        import openai
+        openai_key = os.environ.get("OPENAI_API_KEY")
+        if not openai_key:
+            return "El agente Gemini falló y no hay OPENAI_API_KEY configurada para el respaldo."
+
+        try:
+            oai_client = openai.OpenAI(api_key=openai_key)
+            oai_response = oai_client.chat.completions.create(
+                model="gpt-5-nano-2025-08-07",
+                messages=[
+                    {"role": "system", "content": "Eres FraudIA. " + rules_text},
+                    {"role": "user", "content": user_message}
+                ]
+            )
+            return oai_response.choices[0].message.content
+        except Exception as oai_error:
+            return f"Error en el fallback de OpenAI: {oai_error}"

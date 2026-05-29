@@ -8,6 +8,8 @@ import {
   FilePlus2,
   ShieldAlert,
   ChevronRight,
+  Building2,
+  Network,
 } from "lucide-react";
 import {
   Sidebar,
@@ -39,6 +41,18 @@ const NAV_ITEMS = [
     href: "/nuevo",
     icon: FilePlus2,
     description: "Evaluar caso",
+  },
+  {
+    label: "Proveedores",
+    href: "/proveedores",
+    icon: Building2,
+    description: "Análisis de proveedores",
+  },
+  {
+    label: "Red",
+    href: "/red",
+    icon: Network,
+    description: "Red de relaciones",
   },
 ];
 
@@ -106,7 +120,7 @@ export function AppSidebar() {
             Modo
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Solo datos sintéticos — revisión humana obligatoria
+            Revisión humana obligatoria
           </p>
         </div>
       </SidebarFooter>

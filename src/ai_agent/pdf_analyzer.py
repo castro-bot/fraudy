@@ -65,7 +65,7 @@ Revisa el documento PDF y detecta inconsistencias. Responde ÚNICAMENTE con JSON
 }}"""
 
         response = client.models.generate_content(
-            model="gemini-3.1-flash-lite",
+            model="gemini-3-flash-preview",
             contents=[file_ref, prompt]
         )
 

@@ -97,12 +97,19 @@ def entrenar_y_aplicar_modelo():
     print(f"✅ Updated {updated} siniestros.")
 
 
+_cached_model = None
+_cached_scaler = None
+
 def predict_anomalia(siniestro: dict) -> int:
     """Single-record inference. Returns score_anomalia 0–100."""
+    global _cached_model, _cached_scaler
     if not MODEL_PATH.exists() or not SCALER_PATH.exists():
         return 0
-    model = joblib.load(MODEL_PATH)
-    scaler = joblib.load(SCALER_PATH)
+    if _cached_model is None or _cached_scaler is None:
+        _cached_model = joblib.load(MODEL_PATH)
+        _cached_scaler = joblib.load(SCALER_PATH)
+    model = _cached_model
+    scaler = _cached_scaler
 
     df = _prepare_df([siniestro])
     X = df[FEATURES].values

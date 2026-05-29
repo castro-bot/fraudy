@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/table";
 import { SemaforoBadge } from "@/components/semaforo-badge";
 import { computeStats, computeAlertasPorRamo, computeProveedorRanking } from "@/lib/mock-data";
-import { getRamos, getSiniestros, getSiniestrosPage, PAGE_SIZE } from "@/lib/data";
+import { getRamos, getSiniestros, getSiniestrosPage, PAGE_SIZE, getDashboardCache, setDashboardCache } from "@/lib/data";
 import type { NivelRiesgo, Siniestro } from "@/lib/data";
 
 function formatMXN(amount: number) {
@@ -52,20 +52,29 @@ const ALL_NIVELES: NivelRiesgo[] = ["rojo", "amarillo", "verde"];
 
 export default function DashboardPage() {
   // ── Data fetching state ──────────────────────────────────
-  const [datos, setDatos] = useState<Siniestro[]>([]);
+  const [datos, setDatos] = useState<Siniestro[]>(getDashboardCache().siniestros || []);
   const [ramosDisponibles, setRamosDisponibles] = useState<string[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [totalCount, setTotalCount] = useState<number | null>(getDashboardCache().stats?.total || null);
 
   useEffect(() => {
     // Initial load: first page + total count
+    const cache = getDashboardCache();
+    if (cache.siniestros && cache.stats) {
+      const ramosUnicos = Array.from(new Set(cache.siniestros.map((s) => s.ramo))).sort();
+      setRamosDisponibles(ramosUnicos);
+      setHasMore(cache.siniestros.length < cache.stats.total);
+      return; // Already loaded from cache
+    }
+
     Promise.all([
       getSiniestros(),
-      fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/stats`)
+      fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001"}/api/stats`)
         .then((r) => r.ok ? r.json() : null)
         .catch(() => null),
     ]).then(([data, stats]) => {
+      setDashboardCache(data, stats);
       setDatos(data);
       const ramosUnicos = Array.from(new Set(data.map((s) => s.ramo))).sort();
       setRamosDisponibles(ramosUnicos);
@@ -137,7 +146,7 @@ export default function DashboardPage() {
 
   // ── Filtered + sorted data ───────────────────────────────
   const filtered = useMemo(() => {
-    let list = [...datos].sort((a, b) => b.final_score - a.final_score);
+    let list = [...datos].sort((a, b) => b.fecha_reporte.localeCompare(a.fecha_reporte));
 
     if (activeNiveles.size < ALL_NIVELES.length) {
       list = list.filter((s) => activeNiveles.has(s.nivel_riesgo));
@@ -343,11 +352,11 @@ export default function DashboardPage() {
               id="filter-ramo"
               value={selectedRamo}
               onChange={(e) => setSelectedRamo(e.target.value)}
-              className="appearance-none rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 pr-7 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-white/20 cursor-pointer hover:bg-white/[0.06] transition-colors"
+              className="appearance-none rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 pr-7 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-white/20 cursor-pointer hover:bg-white/[0.06] transition-colors [color-scheme:dark]"
             >
-              <option value="todos">Todos los ramos</option>
+              <option className="bg-[#0f111a]" value="todos">Todos los ramos</option>
               {ramosDisponibles.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option className="bg-[#0f111a]" key={r} value={r}>{r}</option>
               ))}
             </select>
             <svg className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">

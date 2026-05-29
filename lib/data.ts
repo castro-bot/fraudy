@@ -6,7 +6,7 @@ import {
   type Stats,
 } from "./mock-data";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 const USE_API = true;
 
 export type { Siniestro, NivelRiesgo, Stats };
@@ -51,33 +51,63 @@ function mapBackendToUI(sin: any): Siniestro {
   const asegurado = sin.asegurado ?? sin.asegurados_sinteticos ?? {};
   const proveedor = sin.proveedor ?? {};
 
-  return {
-    id_siniestro: sin.id_siniestro,
-    id_asegurado: sin.id_asegurado || "ASE-0000",
-    nombre_asegurado: asegurado.nombre_completo || sin.nombre_asegurado || "Asegurado Real",
-    ramo: sin.ramo || "Autos",
-    cobertura: sin.cobertura || "No especificada",
-    fecha_ocurrencia: sin.fecha_ocurrencia || "2024-01-01",
-    fecha_reporte: sin.fecha_reporte || "2024-01-01",
-    monto_reclamado: sin.monto_reclamado || 0,
-    monto_estimado: sin.monto_estimado || (sin.monto_reclamado || 0) * 0.9,
-    estado: sin.estado || "En revisión",
-    descripcion: sin.descripcion_hechos || sin.descripcion || "Sin descripción proporcionada",
-    documentos_completos: (sin.documentos_completos ?? "Sí") === "Sí",
-    id_proveedor: sin.id_proveedor || proveedor.id_proveedor || "PRV-REAL",
-    nombre_proveedor: proveedor.nombre_proveedor || sin.nombre_proveedor || "Proveedor Registrado",
-    dias_desde_inicio_poliza: sin.dias_desde_inicio_poliza ?? 100,
-    dias_entre_ocurrencia_reporte: sin.dias_entre_ocurrencia_reporte || 0,
-    historial_siniestros_asegurado:
-      asegurado.reclamos_12_meses ?? sin.reclamos_previos_asegurado ?? sin.historial_siniestros_asegurado ?? 0,
-    rules_score: sin.score_reglas || 0,
-    anomaly_score: sin.score_anomalia || 0,
-    final_score: sin.final_score ?? sin.score_reglas ?? 0,
-    nivel_riesgo: ((sin.nivel_riesgo || "verde") as string).toLowerCase() as NivelRiesgo,
+    const final_score = sin.final_score ?? sin.score_reglas ?? 0;
+
+    const dbNivel = (sin.nivel_riesgo ?? "").toLowerCase();
+    let nivel_riesgo: NivelRiesgo =
+      dbNivel === "rojo" ? "rojo" :
+      dbNivel === "amarillo" ? "amarillo" :
+      dbNivel === "verde" ? "verde" :
+      final_score >= 76 ? "rojo" :
+      final_score >= 41 ? "amarillo" : "verde";
+
+    return {
+      id_siniestro: sin.id_siniestro,
+      id_asegurado: sin.id_asegurado || "ASE-0000",
+      nombre_asegurado: asegurado.nombre_completo || sin.nombre_asegurado || "Asegurado Real",
+      ramo: sin.ramo || "Autos",
+      cobertura: sin.cobertura || "No especificada",
+      fecha_ocurrencia: sin.fecha_ocurrencia || "2024-01-01",
+      fecha_reporte: sin.fecha_reporte || "2024-01-01",
+      monto_reclamado: sin.monto_reclamado || 0,
+      monto_estimado: sin.monto_estimado || (sin.monto_reclamado || 0) * 0.9,
+      estado: sin.estado || "En revisión",
+      descripcion: sin.descripcion_hechos || sin.descripcion || "Sin descripción proporcionada",
+      documentos_completos: (sin.documentos_completos ?? "Sí") === "Sí",
+      id_proveedor: sin.id_proveedor || proveedor.id_proveedor || "PRV-REAL",
+      nombre_proveedor: proveedor.nombre_proveedor || sin.nombre_proveedor || "Proveedor Registrado",
+      dias_desde_inicio_poliza: sin.dias_desde_inicio_poliza ?? 100,
+      dias_entre_ocurrencia_reporte: sin.dias_entre_ocurrencia_reporte || 0,
+      historial_siniestros_asegurado:
+        asegurado.reclamos_12_meses ?? sin.reclamos_previos_asegurado ?? sin.historial_siniestros_asegurado ?? 0,
+      rules_score: sin.score_reglas || 0,
+      anomaly_score: sin.score_anomalia || 0,
+      final_score,
+      nivel_riesgo,
     alertas_activas,
     // Pass through extra fields for detail page
     explicacion_agente: sin.explicacion_agente,
-  } as Siniestro & { explicacion_agente?: string };
+    pdf_analysis: typeof sin.pdf_analysis === 'string' ? JSON.parse(sin.pdf_analysis) : sin.pdf_analysis,
+  } as Siniestro & { explicacion_agente?: string; pdf_analysis?: any };
+}
+
+// ─── Dashboard cache (shared across page navigations) ────────────────────────
+
+let _cachedSiniestros: Siniestro[] | null = null;
+let _cachedStats: any = null;
+
+export function getDashboardCache() {
+  return { siniestros: _cachedSiniestros, stats: _cachedStats };
+}
+
+export function setDashboardCache(siniestros: Siniestro[], stats: any) {
+  _cachedSiniestros = siniestros;
+  _cachedStats = stats;
+}
+
+export function invalidateSiniestrosCache() {
+  _cachedSiniestros = null;
+  _cachedStats = null;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -88,12 +118,12 @@ export async function getSiniestros(filters: SiniestroFilters = {}): Promise<Sin
   if (USE_API) {
     const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
     const res = await fetch(`${API_URL}/api/siniestros?${params}`, {
-      next: { revalidate: 30 },  // SWR: serve cached, revalidate in bg
+      cache: "no-store",
     });
     if (!res.ok) throw new Error("Error fetching siniestros");
     const rawData = await res.json();
     const listReal = rawData.map(mapBackendToUI);
-    const sorted = listReal.sort((a: Siniestro, b: Siniestro) => b.final_score - a.final_score);
+    const sorted = listReal.sort((a: Siniestro, b: Siniestro) => b.fecha_reporte.localeCompare(a.fecha_reporte));
     return applyFilters(sorted, filters);
   }
 
@@ -126,6 +156,34 @@ export async function getSiniestro(id: string): Promise<Siniestro | null> {
     }
   }
   return MOCK_SINIESTROS.find((s) => s.id_siniestro === id) ?? null;
+}
+
+export async function getSiniestroExplicacion(id: string): Promise<string | null> {
+  if (USE_API) {
+    try {
+      const res = await fetch(`${API_URL}/api/siniestros/${id}/explicacion`, { cache: "no-store" });
+      if (!res.ok) return null;
+      const raw = await res.json();
+      return raw.explicacion_agente || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export async function getSiniestroPdfAnalysis(id: string): Promise<any | null> {
+  if (USE_API) {
+    try {
+      const res = await fetch(`${API_URL}/api/siniestros/${id}/pdf-analysis`, { cache: "no-store" });
+      if (!res.ok) return null;
+      const raw = await res.json();
+      return typeof raw.pdf_analysis === 'string' ? JSON.parse(raw.pdf_analysis) : raw.pdf_analysis;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 export async function getStats(filters: SiniestroFilters = {}): Promise<Stats> {

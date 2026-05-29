@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
+import { Streamdown } from 'streamdown';
+import { useState } from 'react';
 import { MessageSquare, Bot, Send, Sparkles, ShieldAlert, TrendingUp, FileSearch, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -29,91 +32,20 @@ function BuildingIcon(props: React.ComponentProps<"svg">) {
 
 export default function ChatPage() {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<{ role: "user" | "agent"; content: string }[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
+  const { messages, sendMessage, status, error } = useChat({
+    id: 'fraudia-chat',
+    transport: new DefaultChatTransport({ api: '/api/chat' }),
+  });
+  const isLoading = status === 'submitted' || status === 'streaming';
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!input.trim() || isLoading) return;
+    sendMessage({ text: input });
+    setInput("");
+  };
 
   const hasMessages = messages.length > 0;
-
-  // --- FUNCIÓN PARA FORMATEAR MARKDOWN ---
-  const formatTexto = (texto: string) => {
-    return texto.split('\n').map((linea, index) => {
-      // Ignorar líneas completamente vacías para no hacer saltos dobles excesivos
-      if (!linea.trim()) return <div key={index} className="h-2"></div>;
-
-      let isList = false;
-      let isHeader = false;
-      let processedLine = linea;
-
-      // Detectar y limpiar símbolos de listas y títulos
-      if (processedLine.trim().startsWith('- ')) {
-        isList = true;
-        processedLine = processedLine.trim().substring(2);
-      } else if (processedLine.trim().startsWith('### ')) {
-        isHeader = true;
-        processedLine = processedLine.trim().substring(4);
-      }
-
-      // Procesar negritas
-      const partes = processedLine.split(/(\*\*.*?\*\*)/g);
-      const lineaFormateada = partes.map((parte, i) => {
-        if (parte.startsWith('**') && parte.endsWith('**')) {
-          return <strong key={i} className="text-white font-bold">{parte.slice(2, -2)}</strong>;
-        }
-        return parte;
-      });
-
-      // Renderizar el bloque HTML correspondiente
-      if (isList) {
-        return (
-          <li key={index} className="ml-5 mb-1 list-disc text-foreground/90">
-            {lineaFormateada}
-          </li>
-        );
-      } else if (isHeader) {
-        return (
-          <h3 key={index} className="font-bold text-lg mt-4 mb-2 text-white">
-            {lineaFormateada}
-          </h3>
-        );
-      }
-      
-      // Texto normal
-      return <p key={index} className="mb-2 leading-relaxed">{lineaFormateada}</p>;
-    });
-  };
-
-  // Llama al backend de FastAPI
-  const askAI = async (messageText: string) => {
-    setIsStreaming(true);
-    try {
-      const res = await fetch("http://localhost:8000/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: messageText }),
-      });
-      const data = await res.json();
-      
-      setMessages((prev) => [
-        ...prev,
-        { role: "agent", content: data.response || "No se pudo obtener respuesta." },
-      ]);
-    } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "agent", content: "Error de conexión con el servidor (FastAPI)." },
-      ]);
-    } finally {
-      setIsStreaming(false);
-    }
-  };
-
-  async function handleSend() {
-    if (!input.trim() || isStreaming) return;
-    const textToSend = input;
-    setMessages((prev) => [...prev, { role: "user", content: textToSend }]);
-    setInput("");
-    await askAI(textToSend);
-  }
 
   return (
     <div className="flex flex-col h-full">
@@ -124,9 +56,9 @@ export default function ChatPage() {
             <Bot className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-base font-bold tracking-tight">Agente FraudIA</h1>
+            <h1 className="text-base font-bold tracking-tight">FraudIA</h1>
             <p className="text-xs text-muted-foreground">
-              Asistente de análisis de siniestros · Google Gemini / OpenAI
+              Asistente de análisis de siniestros
             </p>
           </div>
         </div>
@@ -154,8 +86,7 @@ export default function ChatPage() {
                   <button
                     key={action.label}
                     onClick={() => {
-                      setMessages([{ role: "user", content: action.label }]);
-                      askAI(action.label); // Llama a la IA directamente
+                      sendMessage({ text: action.label });
                     }}
                     className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-white/[0.06] hover:border-white/[0.12] transition-all"
                   >
@@ -170,28 +101,49 @@ export default function ChatPage() {
           <div className="max-w-2xl mx-auto space-y-4">
             {messages.map((msg, i) => (
               <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                {msg.role === "agent" && (
+                {msg.role !== "user" && (
                   <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-blue-500 shadow-sm">
                     <Bot className="h-3.5 w-3.5 text-white" />
                   </div>
                 )}
                 <div className={`max-w-[80%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${msg.role === "user" ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "border border-white/[0.06] bg-white/[0.03] text-foreground"}`}>
-                  {/* Se aplica el formateador solo a los mensajes del agente */}
-                  {msg.role === "agent" ? formatTexto(msg.content) : msg.content}
+                  {msg.parts.map((part, partIndex) => {
+                    if (part.type === 'text') {
+                      return <div key={partIndex}>{msg.role !== "user" ? <div className="streamdown-container"><Streamdown>{part.text}</Streamdown></div> : part.text}</div>;
+                    }
+                    if (part.type.startsWith('tool-')) {
+                      return (
+                        <div key={partIndex} className="text-muted-foreground italic flex items-center gap-2 my-2 text-xs opacity-70">
+                          <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                          Consultando herramienta...
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
                 </div>
               </div>
             ))}
-            {isStreaming && (
+            {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
               <div className="flex gap-3 justify-start">
                 <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-blue-500 shadow-sm">
                   <Bot className="h-3.5 w-3.5 text-white" />
                 </div>
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-2.5">
-                  <div className="flex gap-1">
-                    <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <div className="text-muted-foreground italic flex items-center gap-2 text-xs opacity-70">
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                    Consultando herramienta...
                   </div>
+                </div>
+              </div>
+            )}
+            {error && (
+              <div className="flex gap-3 justify-start">
+                <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-red-500/80 shadow-sm">
+                  <AlertTriangle className="h-3.5 w-3.5 text-white" />
+                </div>
+                <div className="max-w-[80%] rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm leading-relaxed text-red-200">
+                  {error.message || "Ocurrió un error al procesar tu solicitud."}
                 </div>
               </div>
             )}
@@ -202,23 +154,19 @@ export default function ChatPage() {
       {/* Input area */}
       <div className="shrink-0 border-t border-white/[0.06] px-6 py-4">
         <div className="flex items-center gap-2 max-w-2xl mx-auto">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            placeholder="Pregunta sobre siniestros, alertas o scores..."
-            className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-white/20 hover:bg-white/[0.05] transition-colors"
-            disabled={isStreaming}
-          />
-          <Button onClick={handleSend} disabled={!input.trim() || isStreaming} size="icon" className="h-10 w-10 shrink-0 rounded-xl">
-            <Send className="h-4 w-4" />
-          </Button>
+          <form onSubmit={handleSubmit} className="flex-1 flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Pregunta sobre siniestros, alertas o scores..."
+              className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-white/20 hover:bg-white/[0.05] transition-colors"
+              disabled={isLoading}
+            />
+            <Button type="submit" disabled={!input?.trim() || isLoading} size="icon" className="h-10 w-10 shrink-0 rounded-xl">
+              <Send className="h-4 w-4" />
+            </Button>
+          </form>
         </div>
       </div>
     </div>

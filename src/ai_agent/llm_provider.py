@@ -22,7 +22,7 @@ class LLMProvider:
             system_instruction = "Eres un asistente experto en seguros y antifraude."
             full_prompt = f"{system_instruction}\n\n{prompt}"
             response = self.client.models.generate_content(
-                model="gemini-3.1-flash-lite",
+                model="gemini-3-flash-preview",
                 contents=full_prompt,
             )
             return response.text.strip()
@@ -86,7 +86,7 @@ class LLMProvider:
                 f"Contexto de base de datos:\n{context_data}"
             )
             response = self.client.models.generate_content(
-                model="gemini-3.1-flash-lite",
+                model="gemini-3-flash-preview",
                 contents=f"{system}\n\nUsuario: {user_message}",
             )
             return response.text.strip()

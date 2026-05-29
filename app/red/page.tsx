@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Network } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 interface GraphNode {
   id: string;
@@ -42,6 +42,7 @@ export default function RedPage() {
   const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string } | null>(null);
   const animRef = useRef<number>(0);
   const nodesRef = useRef<GraphNode[]>([]);
+  const draggedNodeRef = useRef<GraphNode | null>(null);
 
   useEffect(() => {
     fetch(`${API_URL}/api/red`, { cache: "no-store" })
@@ -108,6 +109,11 @@ export default function RedPage() {
 
       // Centering
       for (const n of ns) {
+        if (draggedNodeRef.current && n.id === draggedNodeRef.current.id) {
+          n.vx = 0;
+          n.vy = 0;
+          continue;
+        }
         n.vx! += (w / 2 - (n.x ?? 0)) * 0.001;
         n.vy! += (h / 2 - (n.y ?? 0)) * 0.001;
         n.vx! *= 0.85;
@@ -159,6 +165,31 @@ export default function RedPage() {
     return () => cancelAnimationFrame(animRef.current);
   }, [nodes, edges]);
 
+  function handleMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const scaleX = 900 / rect.width;
+    const scaleY = 600 / rect.height;
+    const cx = mx * scaleX;
+    const cy = my * scaleY;
+
+    for (const n of nodesRef.current) {
+      const dx = (n.x ?? 0) - cx;
+      const dy = (n.y ?? 0) - cy;
+      if (dx * dx + dy * dy < 100) {
+        draggedNodeRef.current = n;
+        n.vx = 0;
+        n.vy = 0;
+        return;
+      }
+    }
+  }
+
+  function handleMouseUp() {
+    draggedNodeRef.current = null;
+  }
+
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
     const rect = canvasRef.current!.getBoundingClientRect();
     const mx = e.clientX - rect.left;
@@ -167,6 +198,15 @@ export default function RedPage() {
     const scaleY = 600 / rect.height;
     const cx = mx * scaleX;
     const cy = my * scaleY;
+
+    if (draggedNodeRef.current) {
+      draggedNodeRef.current.x = cx;
+      draggedNodeRef.current.y = cy;
+      draggedNodeRef.current.vx = 0;
+      draggedNodeRef.current.vy = 0;
+      setTooltip(null);
+      return;
+    }
 
     for (const n of nodesRef.current) {
       const dx = (n.x ?? 0) - cx;
@@ -179,6 +219,11 @@ export default function RedPage() {
     setTooltip(null);
   }
 
+  function handleMouseLeave() {
+    draggedNodeRef.current = null;
+    setTooltip(null);
+  }
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex items-center gap-3">
@@ -188,7 +233,7 @@ export default function RedPage() {
         <div>
           <h1 className="text-xl font-bold">Red de Relaciones</h1>
           <p className="text-sm text-muted-foreground">
-            Vínculos entre asegurados (círculo) y proveedores (diamante) vía siniestros
+            Vínculos entre asegurados y proveedores vía siniestros
           </p>
         </div>
       </div>
@@ -218,8 +263,10 @@ export default function RedPage() {
                 width={900}
                 height={600}
                 className="w-full h-auto cursor-crosshair"
+                onMouseDown={handleMouseDown}
+                onMouseUp={handleMouseUp}
                 onMouseMove={handleMouseMove}
-                onMouseLeave={() => setTooltip(null)}
+                onMouseLeave={handleMouseLeave}
               />
               {tooltip && (
                 <div

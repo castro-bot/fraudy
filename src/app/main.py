@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from pydantic import BaseModel
 import os
 from supabase import create_client, Client
@@ -65,15 +65,18 @@ def listar_siniestros_priorizados(
             "monto_reclamado,monto_estimado,descripcion_hechos,"
             "documentos_completos,dias_desde_inicio_poliza,"
             "dias_entre_ocurrencia_reporte,sucursal,"
-            "score_reglas,score_anomalia,nivel_riesgo,alertas"
+            "score_reglas,score_anomalia,nivel_riesgo,alertas,"
+            "placa_vehiculo,prov_lista_restrictiva,numero_parte_policial,"
+            "suma_asegurada,similitud_narrativa_max,dias_hasta_fin_poliza,"
+            "reclamos_previos_asegurado"
         )
-        ASE_COLS = "id_asegurado,nombre_completo,reclamos_12_meses,reclamos_historico,perfil_riesgo"
+        ASE_COLS = "id_asegurado,nombre_completo,reclamos_12_meses,reclamos_historico,perfil_riesgo,reclamos_rc_sin_tercero"
 
         # Layer 2: nested join — requires FK constraint on siniestros.id_asegurado
         try:
             query = supabase.table("siniestros").select(
                 f"{LIGHT_COLS}, asegurados_sinteticos({ASE_COLS})"
-            ).order("score_reglas", desc=True)
+            ).order("fecha_reporte", desc=True)
             if nivel:
                 query = query.eq("nivel_riesgo", nivel)
             if ramo:
@@ -84,7 +87,7 @@ def listar_siniestros_priorizados(
             use_nested = True
         except Exception:
             # Fallback: separate query
-            query = supabase.table("siniestros").select(LIGHT_COLS).order("score_reglas", desc=True)
+            query = supabase.table("siniestros").select(LIGHT_COLS).order("fecha_reporte", desc=True)
             if nivel:
                 query = query.eq("nivel_riesgo", nivel)
             if ramo:
@@ -110,6 +113,11 @@ def listar_siniestros_priorizados(
             if not sin.get("score_reglas"):
                 evaluacion = evaluar_siniestro(sin, asegurado)
                 sin = {**sin, **evaluacion}
+            else:
+                if "final_score" not in sin:
+                    sr = sin.get("score_reglas") or 0
+                    sa = sin.get("score_anomalia") or 0
+                    sin["final_score"] = min(int(0.7 * sr + 0.3 * sa), 100)
             sin["asegurados_sinteticos"] = asegurado
             resultados.append(sin)
 
@@ -157,24 +165,20 @@ def get_siniestro_detail(id: str):
             docs = r.data or []
 
         # Rules evaluation
-        evaluacion = evaluar_siniestro(sin, asegurado)
-
-        # Layer 1: AI explanation — use cached value, compute + store only if absent
-        explicacion = sin.get("explicacion_agente")
-        if not explicacion:
-            explicacion = redactar_explicacion(
-                siniestro=sin,
-                nivel_riesgo=evaluacion["nivel_riesgo"],
-                score=evaluacion["score_reglas"],
-                alertas=evaluacion["alertas"],
-            )
-            # Cache for next request
-            try:
-                supabase.table("siniestros").update(
-                    {"explicacion_agente": explicacion}
-                ).eq("id_siniestro", id).execute()
-            except Exception:
-                pass  # Cache write failure is non-fatal
+        # Only evaluate if missing from DB to maintain consistency with the dashboard
+        if not sin.get("score_reglas"):
+            evaluacion = evaluar_siniestro(sin, asegurado)
+        else:
+            sr = sin.get("score_reglas") or 0
+            sa = sin.get("score_anomalia") or 0
+            final_score = min(int(0.7 * sr + 0.3 * sa), 100)
+            evaluacion = {
+                "score_reglas": sr,
+                "score_anomalia": sa,
+                "final_score": final_score,
+                "nivel_riesgo": sin.get("nivel_riesgo") or "Verde",
+                "alertas": sin.get("alertas") or [],
+            }
 
         # Top 3 similares via RPC (if embedding available)
         similares = []
@@ -189,21 +193,9 @@ def get_siniestro_detail(id: str):
             except Exception:
                 pass
 
-        # Layer 1: PDF analysis — use cached value, compute + store only if absent
+        # Only use cached values for AI to avoid blocking the main endpoint
+        explicacion = sin.get("explicacion_agente")
         pdf_analysis = sin.get("pdf_analysis")
-        if not pdf_analysis:
-            try:
-                from src.ai_agent.pdf_analyzer import analyze_siniestro_pdf
-                pdf_analysis = analyze_siniestro_pdf(sin)
-                if pdf_analysis:
-                    try:
-                        supabase.table("siniestros").update(
-                            {"pdf_analysis": pdf_analysis}
-                        ).eq("id_siniestro", id).execute()
-                    except Exception:
-                        pass  # Cache write failure is non-fatal
-            except Exception:
-                pass
 
         return {
             **sin,
@@ -217,6 +209,81 @@ def get_siniestro_detail(id: str):
             "pdf_analysis": pdf_analysis,
         }
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/siniestros/{id}/explicacion")
+def get_siniestro_explicacion(id: str):
+    """Generates or retrieves the AI explanation for a siniestro."""
+    try:
+        res = supabase.table("siniestros").select("*").eq("id_siniestro", id).single().execute()
+        sin = res.data
+        if not sin:
+            raise HTTPException(status_code=404, detail="Siniestro not found")
+
+        explicacion = sin.get("explicacion_agente")
+        if explicacion:
+            return {"explicacion_agente": explicacion}
+
+        # Need asegurado for rules eval
+        asegurado = {}
+        if sin.get("id_asegurado"):
+            r = supabase.table("asegurados_sinteticos").select("*").eq("id_asegurado", sin["id_asegurado"]).execute()
+            asegurado = r.data[0] if r.data else {}
+
+        if not sin.get("score_reglas"):
+            evaluacion = evaluar_siniestro(sin, asegurado)
+        else:
+            evaluacion = {
+                "score_reglas": sin.get("score_reglas") or 0,
+                "nivel_riesgo": sin.get("nivel_riesgo") or "Verde",
+                "alertas": sin.get("alertas") or [],
+            }
+
+        explicacion = redactar_explicacion(
+            siniestro=sin,
+            nivel_riesgo=evaluacion["nivel_riesgo"],
+            score=evaluacion["score_reglas"],
+            alertas=evaluacion["alertas"],
+        )
+        try:
+            supabase.table("siniestros").update(
+                {"explicacion_agente": explicacion}
+            ).eq("id_siniestro", id).execute()
+        except Exception:
+            pass
+
+        return {"explicacion_agente": explicacion}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/siniestros/{id}/pdf-analysis")
+def get_siniestro_pdf_analysis(id: str):
+    """Generates or retrieves the PDF multimodal analysis for a siniestro."""
+    try:
+        res = supabase.table("siniestros").select("*, documentos(*)").eq("id_siniestro", id).single().execute()
+        sin = res.data
+        if not sin:
+            raise HTTPException(status_code=404, detail="Siniestro not found")
+
+        pdf_analysis = sin.get("pdf_analysis")
+        if pdf_analysis:
+            return {"pdf_analysis": pdf_analysis}
+
+        from src.ai_agent.pdf_analyzer import analyze_siniestro_pdf
+        pdf_analysis = analyze_siniestro_pdf(sin)
+        
+        if pdf_analysis:
+            try:
+                supabase.table("siniestros").update(
+                    {"pdf_analysis": pdf_analysis}
+                ).eq("id_siniestro", id).execute()
+            except Exception:
+                pass
+                
+        return {"pdf_analysis": pdf_analysis}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -394,5 +461,76 @@ def chat_con_agente(request: ChatMessage):
         from src.ai_agent.function_agent import chat_with_agent
         respuesta = chat_with_agent(request.message, supabase)
         return {"response": respuesta}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/upload")
+async def upload_dataset(file: UploadFile = File(...)):
+    """Uploads an Excel file, processes it, and persists it to Supabase immediately."""
+    import tempfile
+    import openpyxl
+    from src.ingestion.load_official import SHEET_MAP, load_sheet
+    
+    try:
+        if not file.filename.endswith(".xlsx"):
+            raise HTTPException(status_code=400, detail="Only .xlsx files are supported")
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+            tmp.write(await file.read())
+            tmp_path = tmp.name
+
+        try:
+            wb = openpyxl.load_workbook(tmp_path, read_only=True, data_only=True)
+            load_order = ["3_Asegurados", "4_Proveedores", "2_Polizas", "1_Siniestros", "5_Documentos"]
+            
+            summary = {}
+            errors: list[str] = []
+            for sheet_name in load_order:
+                if sheet_name not in SHEET_MAP:
+                    continue
+                try:
+                    table, col_map = SHEET_MAP[sheet_name]
+
+                    matched = None
+                    for s in wb.sheetnames:
+                        if sheet_name in s or s in sheet_name:
+                            matched = s
+                            break
+                    if not matched:
+                        errors.append(f"{sheet_name}: hoja no encontrada en el archivo")
+                        continue
+
+                    ws = wb[matched]
+                    rows = load_sheet(ws, col_map)
+
+                    if rows:
+                        if table == "siniestros":
+                            # We evaluate the siniestro immediately to persist scores
+                            asegurados_res = supabase.table("asegurados_sinteticos").select("*").execute()
+                            asegurados_map = {a["id_asegurado"]: a for a in asegurados_res.data}
+
+                            for row in rows:
+                                asegurado = asegurados_map.get(row.get("id_asegurado"))
+                                eval_res = evaluar_siniestro(row, asegurado)
+                                row["score_reglas"] = eval_res["score_reglas"]
+                                row["score_anomalia"] = eval_res["score_anomalia"]
+                                row["nivel_riesgo"] = eval_res["nivel_riesgo"]
+                                row["alertas"] = eval_res["alertas"]
+
+                        chunk_size = 100
+                        for i in range(0, len(rows), chunk_size):
+                            batch = rows[i: i + chunk_size]
+                            supabase.table(table).upsert(batch, on_conflict="id_siniestro" if table == "siniestros" else None).execute()
+
+                        summary[table] = len(rows)
+                except Exception as e:
+                    errors.append(f"{sheet_name}: {e}")
+
+        finally:
+            os.unlink(tmp_path)
+
+        return {"message": "Upload successful", "summary": summary, "errors": errors}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
