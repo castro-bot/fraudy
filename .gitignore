@@ -39,8 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-data/raw/
-
 
 *.pyc
 __pycache__/
